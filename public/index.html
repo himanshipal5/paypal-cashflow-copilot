@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PayPal Cash-Flow Copilot</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 900px; margin: 30px auto; padding: 0 16px; color: #1a1a1a; }
+    h1 { margin-bottom: 4px; }
+    .subtitle { color: #666; margin-top: 0; }
+    .box { border: 1px solid #ddd; border-radius: 8px; padding: 16px; margin: 16px 0; }
+    textarea, input { width: 100%; padding: 8px; margin: 4px 0 10px; box-sizing: border-box; font-size: 14px; }
+    button { padding: 10px 16px; font-size: 14px; cursor: pointer; border: none; border-radius: 6px; background: #0070ba; color: white; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { text-align: left; padding: 8px; border-bottom: 1px solid #eee; }
+    .item-row { display: flex; gap: 8px; }
+    .hidden { display: none; }
+    .error { color: #b00020; }
+  </style>
+</head>
+<body>
+  <h1>PayPal Cash-Flow Copilot</h1>
+  <p class="subtitle">Type what you want to invoice. The AI reads it, you confirm, PayPal sends it.</p>
+
+  <!-- Part 1: type the request -->
+  <div class="box">
+    <h3>1. Describe the invoice</h3>
+    <textarea id="requestText" rows="3" placeholder="Example: Invoice Rohan $50 for logo design, due in 10 days"></textarea>
+    <button id="parseButton">Read with AI</button>
+    <p id="message"></p>
+  </div>
+
+  <!-- Part 2: check the details (hidden until the AI has answered) -->
+  <div class="box hidden" id="confirmBox">
+    <h3>2. Check the details</h3>
+    <label>Customer name</label>
+    <input id="customerName" />
+    <label>Customer email</label>
+    <input id="customerEmail" placeholder="Leave empty to use the test customer" />
+    <label>Currency</label>
+    <input id="currency" />
+    <label>Due in (days)</label>
+    <input id="dueDays" type="number" />
+    <label>Items (name, quantity, price)</label>
+    <div id="itemsContainer"></div>
+    <button id="sendButton">Confirm, create and send invoice</button>
+  </div>
+
+  <!-- Part 3: the invoice table -->
+  <div class="box">
+    <h3>3. Your invoices</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>Number</th>
+          <th>Customer</th>
+          <th>Amount</th>
+          <th>Status</th>
+          <th>Due date</th>
+        </tr>
+      </thead>
+      <tbody id="invoiceRows"></tbody>
+    </table>
+  </div>
+
+  <script>
+    // Find the parts of the page we need to change
+    const requestText = document.getElementById('requestText');
+    const parseButton = document.getElementById('parseButton');
+    const messageBox = document.getElementById('message');
+    const confirmBox = document.getElementById('confirmBox');
+    const customerName = document.getElementById('customerName');
+    const customerEmail = document.getElementById('customerEmail');
+    const currency = document.getElementById('currency');
+    const dueDays = document.getElementById('dueDays');
+    const itemsContainer = document.getElementById('itemsContainer');
+    const sendButton = document.getElementById('sendButton');
+    const invoiceRows = document.getElementById('invoiceRows');
+
+    // Show a message under the first box
+    function showMessage(text, isError) {
+      messageBox.textContent = text;
+      messageBox.className = isError ? 'error' : '';
+    }
+
+    // Add one cell to a table row
+    function addCell(row, text) {
+      const cell = document.createElement('td');
+      cell.textContent = text;
+      row.appendChild(cell);
+    }
+
+    // Add one row of inputs (name, quantity, price) for an item
+    function addItemRow(item) {
+      const row = document.createElement('div');
+      row.className = 'item-row';
+
+      const nameInput = document.createElement('input');
+      nameInput.placeholder = 'Item name';
+      nameInput.value = item.name || '';
+
+      const quantityInput = document.createElement('input');
+      quantityInput.placeholder = 'Qty';
+      quantityInput.type = 'number';
+      quantityInput.value = item.quantity || 1;
+
+      const priceInput = document.createElement('input');
+      priceInput.placeholder = 'Price';
+      priceInput.type = 'number';
+      priceInput.value = item.unit_price || '';
+
+      row.appendChild(nameInput);
+      row.appendChild(quantityInput);
+      row.appendChild(priceInput);
+      itemsContainer.appendChild(row);
+    }
+
+    // Put the AI's answer into the confirm form
+    function fillConfirmForm(data) {
+      customerName.value = data.customer_name || '';
+      customerEmail.value = data.customer_email || '';
+      currency.value = data.currency || 'USD';
+      dueDays.value = data.due_in_days || '';
+
+      itemsContainer.innerHTML = '';
+      const items = data.items || [];
+      items.forEach(function (item) {
+        addItemRow(item);
+      });
+
+      confirmBox.classList.remove('hidden');
+    }
+
+    // Read the confirm form back into an object
+    function readConfirmForm() {
+      const items = [];
+      const rows = itemsContainer.querySelectorAll('.item-row');
+
+      rows.forEach(function (row) {
+        const inputs = row.querySelectorAll('input');
+        items.push({
+          name: inputs[0].value,
+          quantity: Number(inputs[1].value),
+          unit_price: Number(inputs[2].value),
+        });
+      });
+
+      return {
+        customer_name: customerName.value,
+        customer_email: customerEmail.value || null,
+        currency: currency.value || 'USD',
+        due_in_days: dueDays.value ? Number(dueDays.value) : null,
+        items: items,
+      };
+    }
+
+    // Load the invoice table from our server
+    async function loadInvoices() {
+      invoiceRows.innerHTML = '';
+
+      try {
+        const response = await fetch('/api/invoices');
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Could not load invoices');
+        }
+
+        const invoices = data.items || [];
+
+        invoices.forEach(function (invoice) {
+          const row = document.createElement('tr');
+
+          // Work out the customer name or email, if PayPal gave us one
+          let customer = '-';
+          if (invoice.primary_recipients && invoice.primary_recipients[0]) {
+            const billing = invoice.primary_recipients[0].billing_info || {};
+            if (billing.name && billing.name.full_name) {
+              customer = billing.name.full_name;
+            } else if (billing.email_address) {
+              customer = billing.email_address;
+            }
+          }
+
+          // Work out the amount and due date
+          let amount = '-';
+          if (invoice.amount) {
+            amount = invoice.amount.value + ' ' + invoice.amount.currency_code;
+          }
+
+          let dueDate = '-';
+          if (invoice.detail && invoice.detail.payment_term && invoice.detail.payment_term.due_date) {
+            dueDate = invoice.detail.payment_term.due_date;
+          }
+
+          addCell(row, invoice.detail ? invoice.detail.invoice_number : '-');
+          addCell(row, customer);
+          addCell(row, amount);
+          addCell(row, invoice.status);
+          addCell(row, dueDate);
+          invoiceRows.appendChild(row);
+        });
+      } catch (error) {
+        const row = document.createElement('tr');
+        addCell(row, error.message);
+        invoiceRows.appendChild(row);
+      }
+    }
+
+    // When "Read with AI" is clicked
+    parseButton.addEventListener('click', async function () {
+      const text = requestText.value.trim();
+
+      if (!text) {
+        showMessage('Please type a request first.', true);
+        return;
+      }
+
+      parseButton.disabled = true;
+      showMessage('Asking the AI...', false);
+
+      try {
+        const response = await fetch('/api/parse-invoice', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: text }),
+        });
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Something went wrong');
+        }
+
+        fillConfirmForm(data);
+        showMessage('Please check the details below, then confirm.', false);
+      } catch (error) {
+        showMessage(error.message, true);
+      }
+
+      parseButton.disabled = false;
+    });
+
+    // When "Confirm, create and send invoice" is clicked
+    sendButton.addEventListener('click', async function () {
+      sendButton.disabled = true;
+      showMessage('Creating the invoice in PayPal...', false);
+
+      try {
+        const invoiceData = readConfirmForm();
+
+        // Step 1: create the draft
+        const createResponse = await fetch('/api/invoices/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(invoiceData),
+        });
+        const created = await createResponse.json();
+
+        if (!createResponse.ok) {
+          throw new Error(created.error || 'Could not create the invoice');
+        }
+
+        // Step 2: send it to the customer
+        const sendResponse = await fetch('/api/invoices/' + created.invoice_id + '/send', {
+          method: 'POST',
+        });
+        const sent = await sendResponse.json();
+
+        if (!sendResponse.ok) {
+          throw new Error(sent.error || 'Could not send the invoice');
+        }
+
+        showMessage('Invoice sent!', false);
+        confirmBox.classList.add('hidden');
+        requestText.value = '';
+        loadInvoices();
+      } catch (error) {
+        showMessage(error.message, true);
+      }
+
+      sendButton.disabled = false;
+    });
+
+    // Load the table when the page opens
+    loadInvoices();
+  </script>
+</body>
+</html>

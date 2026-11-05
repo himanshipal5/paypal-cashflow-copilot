@@ -27,3 +27,6 @@ Hit a `503: high demand` error from Google. So `ai.js` now retries up to 3 times
 - `invoice.js` checks the data (name, items, quantity and price above 0) and builds the body PayPal wants. Due date is calculated from "due in N days".
 - New route `/api/invoices/create` makes the draft, and the send route sends it.
 - Tested the full flow with curl: sentence, AI, checked data, draft, sent. Status came back `SENT` with the right due date.
+
+**Dashboard (working).**
+Plain HTML page served by Express: type a request, check and edit the AI's answer in a confirm form, then create and send. Plus a table of invoices loaded straight from PayPal. Tested in the browser: typed "Invoice Rohan $75 for website banner, due in 7 days", confirmed it, and it showed up as SENT with the right due date. The table shows the customer email instead of the name because PayPal's list API doesn't return the name.

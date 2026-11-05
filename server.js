@@ -6,9 +6,13 @@ const express = require('express');
 const { paypalRequest } = require('./paypal');
 const { parseInvoiceText } = require('./ai');
 const { checkInvoiceData, buildPaypalInvoice } = require('./invoice');
+const path = require('path');
 
 const app = express();
 app.use(express.json());
+ 
+// Serve the web page from the "public" folder
+app.use(express.static(path.join(__dirname, 'public')));
 
 // Route 1: a simple check to see if the server is alive
 app.get('/health', function (req, res) {
@@ -150,6 +154,20 @@ app.post('/api/invoices/create', async function (req, res) {
     const invoiceId = linkParts[linkParts.length - 1];
 
     res.json({ invoice_id: invoiceId, status: 'DRAFT' });
+  } catch (error) {
+    console.log('Error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Route 7: get the list of invoices for the dashboard
+app.get('/api/invoices', async function (req, res) {
+  try {
+    const result = await paypalRequest(
+      '/v2/invoicing/invoices?page=1&page_size=20&total_required=true',
+      'GET'
+    );
+    res.json(result);
   } catch (error) {
     console.log('Error:', error.message);
     res.status(500).json({ error: error.message });
