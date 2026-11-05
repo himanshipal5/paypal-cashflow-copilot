@@ -63,6 +63,47 @@ app.post('/api/test-invoice', async function (req, res) {
   }
 });
 
+// Route 3: get the details of one invoice (so we can see its status)
+app.get('/api/invoices/:id', async function (req, res) {
+  try {
+    // The invoice id comes from the web address
+    const invoiceId = req.params.id;
+
+    const invoice = await paypalRequest(
+      '/v2/invoicing/invoices/' + invoiceId,
+      'GET'
+    );
+
+    res.json(invoice);
+  } catch (error) {
+    console.log('Error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Route 4: send a draft invoice to the customer
+app.post('/api/invoices/:id/send', async function (req, res) {
+  try {
+    const invoiceId = req.params.id;
+
+    // Tell PayPal to email the invoice to the customer
+    const sendOptions = {
+      send_to_recipient: true,
+      send_to_invoicer: false,
+    };
+
+    const result = await paypalRequest(
+      '/v2/invoicing/invoices/' + invoiceId + '/send',
+      'POST',
+      sendOptions
+    );
+
+    res.json(result);
+  } catch (error) {
+    console.log('Error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
 // Start the server
 const port = process.env.PORT || 3000;
 
