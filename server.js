@@ -4,6 +4,8 @@
 require('dotenv').config();
 const express = require('express');
 const { paypalRequest } = require('./paypal');
+const { parseInvoiceText } = require('./ai');
+const { checkInvoiceData, buildPaypalInvoice } = require('./invoice');
 
 const app = express();
 app.use(express.json());
@@ -104,6 +106,56 @@ app.post('/api/invoices/:id/send', async function (req, res) {
     res.status(500).json({ error: error.message });
   }
 });
+
+// Route 5: turn a normal sentence into invoice data (does NOT create an invoice yet)
+app.post('/api/parse-invoice', async function (req, res) {
+  try {
+    const userText = req.body.text;
+
+    // Make sure we actually received some text
+    if (!userText) {
+      return res.status(400).json({ error: 'Please send some text.' });
+    }
+
+    const invoiceData = await parseInvoiceText(userText);
+    res.json(invoiceData);
+  } catch (error) {
+    console.log('Error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+// Route 6: create a draft invoice from confirmed invoice data
+app.post('/api/invoices/create', async function (req, res) {
+  try {
+    const invoiceData = req.body;
+
+    // Check the data before we send anything to PayPal
+    const problem = checkInvoiceData(invoiceData);
+    if (problem) {
+      return res.status(400).json({ error: problem });
+    }
+
+    // Get the next invoice number from PayPal
+    const numberResponse = await paypalRequest(
+      '/v2/invoicing/generate-next-invoice-number',
+      'POST'
+    );
+
+    // Build the invoice in PayPal's format and create the draft
+    const paypalBody = buildPaypalInvoice(invoiceData, numberResponse.invoice_number);
+    const draft = await paypalRequest('/v2/invoicing/invoices', 'POST', paypalBody);
+
+    // PayPal gives back a link that ends with the invoice id, so pick the id out
+    const linkParts = draft.href.split('/');
+    const invoiceId = linkParts[linkParts.length - 1];
+
+    res.json({ invoice_id: invoiceId, status: 'DRAFT' });
+  } catch (error) {
+    console.log('Error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 // Start the server
 const port = process.env.PORT || 3000;
 
