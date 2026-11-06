@@ -136,4 +136,19 @@ async function writeSummary(facts) {
   return answerText.trim();
 }
 
-module.exports = { parseInvoiceText, writeSummary };
+// Job 3: write a short, polite payment reminder from facts we already know
+async function writeReminder(facts) {
+  const instructions =
+    'You write short, polite payment reminders for a freelancer. ' +
+    'Reply with JSON only, in exactly this shape: {"subject": string, "note": string}. ' +
+    'The note is at most 4 sentences. Use only the facts given. ' +
+    'If the invoice is overdue, be polite but clear. Otherwise be friendly and light. ' +
+    'If customer_name is null, start the note with "Hello,". ' +
+    'Never use placeholders like [Name] or [Your Name]. ' +
+    'Do not sign off with a name. Do not offer discounts and do not make threats.';
+
+  const answerText = await askAi(instructions + '\n\nFacts:\n' + JSON.stringify(facts, null, 2), true);
+  return JSON.parse(answerText);
+}
+
+module.exports = { parseInvoiceText, writeSummary, writeReminder };

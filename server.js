@@ -4,10 +4,11 @@
 require('dotenv').config();
 const express = require('express');
 const { paypalRequest } = require('./paypal');
-const { parseInvoiceText, writeSummary } = require('./ai');
+const { parseInvoiceText, writeSummary, writeReminder } = require('./ai');
 const { checkInvoiceData, buildPaypalInvoice } = require('./invoice');
 const path = require('path');
 const { buildFacts } = require('./summary');
+const { buildReminderFacts } = require('./reminder');
 
 const app = express();
 app.use(express.json());
@@ -196,6 +197,50 @@ app.get('/api/summary', async function (req, res) {
     }
 
     res.json({ facts: facts, summary: summaryText });
+  } catch (error) {
+    console.log('Error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Route 9: the AI drafts a reminder for one invoice (nothing is sent yet)
+app.post('/api/invoices/:id/draft-reminder', async function (req, res) {
+  try {
+    const invoiceId = req.params.id;
+
+    // Get the invoice from PayPal and work out the facts
+    const invoice = await paypalRequest('/v2/invoicing/invoices/' + invoiceId, 'GET');
+    const facts = buildReminderFacts(invoice);
+
+    // Ask the AI to write the draft
+    const reminder = await writeReminder(facts);
+
+    res.json({ subject: reminder.subject, note: reminder.note });
+  } catch (error) {
+    console.log('Error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Route 10: send the approved reminder through PayPal
+app.post('/api/invoices/:id/remind', async function (req, res) {
+  try {
+    const invoiceId = req.params.id;
+    const subject = req.body.subject;
+    const note = req.body.note;
+
+    // Both parts must be there
+    if (!subject || !note) {
+      return res.status(400).json({ error: 'The reminder needs a subject and a message.' });
+    }
+
+    await paypalRequest('/v2/invoicing/invoices/' + invoiceId + '/remind', 'POST', {
+      subject: subject,
+      note: note,
+      send_to_invoicer: false,
+    });
+
+    res.json({ status: 'Reminder sent' });
   } catch (error) {
     console.log('Error:', error.message);
     res.status(500).json({ error: error.message });

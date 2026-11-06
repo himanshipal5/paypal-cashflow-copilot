@@ -40,3 +40,8 @@ Plain HTML page served by Express: type a request, check and edit the AI's answe
 - Added a cash-flow summary. The server works out the totals and which invoices are overdue or due soon in code (summary.js); the AI only writes the words from those numbers
 - The new Gemini model was often busy (503). I switched the main model to the older, steadier one, and made the summary route still return the numbers if the AI fails
 - Moved the retry and backup-model logic in ai.js into one shared function used by both AI jobs
+
+## 6 Nov (evening)
+- Added AI-drafted reminders with approval. The "Draft reminder" button asks the AI to write a short message from the invoice facts, I can edit it, and only after I approve does PayPal send it (invoice remind API)
+- Hit a bug: the button code was pasted above the wrong appendChild line, so no buttons showed. Replaced the whole loadInvoices function to fix it
+- Dates and amounts are worked out in code (reminder.js); the AI only writes the words

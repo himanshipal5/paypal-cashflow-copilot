@@ -53,6 +53,20 @@
     <p id="summaryStats"></p>
     <p id="summaryText"></p>
   </div>
+
+    <!-- Reminder draft (hidden until you click "Draft reminder") -->
+  <div class="box hidden" id="reminderBox">
+    <h3>Reminder draft</h3>
+    <p id="reminderInfo"></p>
+    <label>Subject</label>
+    <input id="reminderSubject" />
+    <label>Message</label>
+    <textarea id="reminderNote" rows="5"></textarea>
+    <button id="sendReminderButton">Approve and send reminder</button>
+    <button id="cancelReminderButton">Cancel</button>
+    <p id="reminderMessage"></p>
+  </div>
+
   <!-- Part 3: the invoice table -->
   <div class="box">
     <h3>3. Your invoices</h3>
@@ -64,6 +78,7 @@
           <th>Amount</th>
           <th>Status</th>
           <th>Due date</th>
+          <th>Action</th>
         </tr>
       </thead>
       <tbody id="invoiceRows"></tbody>
@@ -162,6 +177,7 @@
     }
 
     // Load the invoice table from our server
+       // Load the invoice table from our server
     async function loadInvoices() {
       invoiceRows.innerHTML = '';
 
@@ -205,6 +221,21 @@
           addCell(row, amount);
           addCell(row, invoice.status);
           addCell(row, dueDate);
+
+          // Action cell: a reminder button for invoices that are waiting for payment
+          const actionCell = document.createElement('td');
+          const waitingStatuses = ['SENT', 'UNPAID', 'PARTIALLY_PAID'];
+
+          if (waitingStatuses.includes(invoice.status)) {
+            const reminderButton = document.createElement('button');
+            reminderButton.textContent = 'Draft reminder';
+            reminderButton.addEventListener('click', function () {
+              draftReminder(invoice.id, invoice.detail.invoice_number);
+            });
+            actionCell.appendChild(reminderButton);
+          }
+
+          row.appendChild(actionCell);
           invoiceRows.appendChild(row);
         });
       } catch (error) {
@@ -213,7 +244,6 @@
         invoiceRows.appendChild(row);
       }
     }
-
     // When "Read with AI" is clicked
     parseButton.addEventListener('click', async function () {
       const text = requestText.value.trim();
@@ -335,6 +365,87 @@
 
       summaryButton.disabled = false;
     });
+
+
+    // The reminder feature
+    const reminderBox = document.getElementById('reminderBox');
+    const reminderInfo = document.getElementById('reminderInfo');
+    const reminderSubject = document.getElementById('reminderSubject');
+    const reminderNote = document.getElementById('reminderNote');
+    const sendReminderButton = document.getElementById('sendReminderButton');
+    const cancelReminderButton = document.getElementById('cancelReminderButton');
+    const reminderMessage = document.getElementById('reminderMessage');
+
+    // Remember which invoice the reminder is for
+    let reminderInvoiceId = null;
+
+    // Ask the AI to draft a reminder and show it for editing
+    async function draftReminder(invoiceId, invoiceNumber) {
+      reminderInvoiceId = invoiceId;
+      reminderBox.classList.remove('hidden');
+      reminderSubject.value = '';
+      reminderNote.value = '';
+      reminderMessage.textContent = '';
+      reminderMessage.className = '';
+      reminderInfo.textContent = 'Asking the AI to draft a reminder for invoice ' + invoiceNumber + '...';
+      sendReminderButton.disabled = true;
+
+      try {
+        const response = await fetch('/api/invoices/' + invoiceId + '/draft-reminder', {
+          method: 'POST',
+        });
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Could not draft the reminder');
+        }
+
+        reminderSubject.value = data.subject;
+        reminderNote.value = data.note;
+        reminderInfo.textContent =
+          'Invoice ' + invoiceNumber + ': please read and edit the message. Nothing is sent until you approve it.';
+        sendReminderButton.disabled = false;
+      } catch (error) {
+        reminderInfo.textContent = '';
+        reminderMessage.className = 'error';
+        reminderMessage.textContent = error.message;
+      }
+    }
+
+    // Send the approved reminder
+    sendReminderButton.addEventListener('click', async function () {
+      sendReminderButton.disabled = true;
+      reminderMessage.className = '';
+      reminderMessage.textContent = 'Sending the reminder...';
+
+      try {
+        const response = await fetch('/api/invoices/' + reminderInvoiceId + '/remind', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            subject: reminderSubject.value,
+            note: reminderNote.value,
+          }),
+        });
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Could not send the reminder');
+        }
+
+        reminderMessage.textContent = 'Reminder sent!';
+      } catch (error) {
+        reminderMessage.className = 'error';
+        reminderMessage.textContent = error.message;
+        sendReminderButton.disabled = false;
+      }
+    });
+
+    // Close the reminder box without sending
+    cancelReminderButton.addEventListener('click', function () {
+      reminderBox.classList.add('hidden');
+    });
+
     // Load the table when the page opens
     loadInvoices();
   </script>
