@@ -46,7 +46,13 @@
     <div id="itemsContainer"></div>
     <button id="sendButton">Confirm, create and send invoice</button>
   </div>
-
+  <!-- Cash-flow summary -->
+  <div class="box">
+    <h3>Cash-flow summary</h3>
+    <button id="summaryButton">Summarise my cash flow</button>
+    <p id="summaryStats"></p>
+    <p id="summaryText"></p>
+  </div>
   <!-- Part 3: the invoice table -->
   <div class="box">
     <h3>3. Your invoices</h3>
@@ -281,7 +287,54 @@
 
       sendButton.disabled = false;
     });
+    // The cash-flow summary
+    const summaryButton = document.getElementById('summaryButton');
+    const summaryStats = document.getElementById('summaryStats');
+    const summaryText = document.getElementById('summaryText');
 
+    summaryButton.addEventListener('click', async function () {
+      summaryButton.disabled = true;
+      summaryStats.textContent = '';
+      summaryText.className = '';
+      summaryText.textContent = 'Reading your invoices and asking the AI...';
+
+      try {
+        const response = await fetch('/api/summary');
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Could not make the summary');
+        }
+
+        const facts = data.facts;
+
+        // Build one line of real numbers from the facts (worked out by code, not the AI)
+        const outstandingParts = [];
+        for (const currency in facts.outstanding_by_currency) {
+          outstandingParts.push(facts.outstanding_by_currency[currency].toFixed(2) + ' ' + currency);
+        }
+
+        const outstandingText = outstandingParts.join(', ') || 'none';
+
+        summaryStats.textContent =
+          'Outstanding: ' + outstandingText +
+          '  |  Overdue: ' + facts.overdue.length +
+          '  |  Due within 7 days: ' + facts.due_soon.length +
+          '  |  Paid: ' + facts.paid_count;
+
+                if (data.summary) {
+          summaryText.textContent = data.summary;
+        } else {
+          summaryText.textContent =
+            'The AI is busy right now, so these are just the numbers. Try again in a minute for the written summary.';
+        }
+      } catch (error) {
+        summaryText.className = 'error';
+        summaryText.textContent = error.message;
+      }
+
+      summaryButton.disabled = false;
+    });
     // Load the table when the page opens
     loadInvoices();
   </script>

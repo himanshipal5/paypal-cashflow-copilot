@@ -1,6 +1,9 @@
 // ai.js
 // This file asks the AI to turn a normal sentence into invoice data.
 
+// This file talks to the AI. It has one shared function that handles
+// retries and the backup model, and two jobs that use it.
+
 require('dotenv').config();
 
 const apiKey = process.env.AI_API_KEY;
@@ -35,29 +38,24 @@ async function askModel(modelName, requestBody) {
   return { response: response, data: data };
 }
 
-async function parseInvoiceText(userText) {
-  // These are our instructions to the AI
-  const instructions =
-    'You read a freelancer\'s request and extract invoice details. ' +
-    'Reply with JSON only, in exactly this shape: ' +
-    '{"customer_name": string, "customer_email": string or null, ' +
-    '"items": [{"name": string, "quantity": number, "unit_price": number}], ' +
-    '"currency": string, "due_in_days": number or null}. ' +
-    'If no currency is mentioned, use "USD". ' +
-    'If something is not mentioned, use null. Do not invent details.';
-
+// Ask the AI something and get the answer back as text.
+// Set wantJson to true if we need the answer as JSON.
+async function askAi(promptText, wantJson) {
   const requestBody = {
     contents: [
       {
         role: 'user',
-        parts: [{ text: instructions + '\n\nRequest: ' + userText }],
+        parts: [{ text: promptText }],
       },
     ],
     generationConfig: {
-      responseMimeType: 'application/json',
-      temperature: 0,
+      temperature: wantJson ? 0 : 0.3,
     },
   };
+
+  if (wantJson) {
+    requestBody.generationConfig.responseMimeType = 'application/json';
+  }
 
   // Make a list of models to try: the main one first, then the backup
   const modelsToTry = [];
@@ -68,18 +66,23 @@ async function parseInvoiceText(userText) {
     modelsToTry.push(backupModel);
   }
 
-  let lastError = 'No AI model is set in the .env file';
+  let lastError = 'No AI model is set in the environment variables';
 
   for (const modelName of modelsToTry) {
     // Try each model up to 3 times
     for (let attempt = 1; attempt <= 3; attempt++) {
       const result = await askModel(modelName, requestBody);
 
-      // It worked, so read the answer and return it
+      // It worked, so join the parts of the answer into one text and return it
       if (result.response.ok) {
-        const answerText = result.data.candidates[0].content.parts[0].text;
-        const invoiceData = JSON.parse(answerText);
-        return invoiceData;
+        const parts = result.data.candidates[0].content.parts;
+        let answerText = '';
+        parts.forEach(function (part) {
+          if (part.text) {
+            answerText = answerText + part.text;
+          }
+        });
+        return answerText;
       }
 
       // It failed, so remember why
@@ -95,7 +98,6 @@ async function parseInvoiceText(userText) {
         break;
       }
 
-      // Wait 2 seconds, then 4 seconds, then 6 seconds before trying again
       console.log('AI is busy, retrying (' + modelName + ', attempt ' + attempt + ')');
       await wait(attempt * 2000);
     }
@@ -105,4 +107,33 @@ async function parseInvoiceText(userText) {
   throw new Error(lastError);
 }
 
-module.exports = { parseInvoiceText };
+// Job 1: turn a normal sentence into invoice data
+async function parseInvoiceText(userText) {
+  const instructions =
+    'You read a freelancer\'s request and extract invoice details. ' +
+    'Reply with JSON only, in exactly this shape: ' +
+    '{"customer_name": string, "customer_email": string or null, ' +
+    '"items": [{"name": string, "quantity": number, "unit_price": number}], ' +
+    '"currency": string, "due_in_days": number or null}. ' +
+    'If no currency is mentioned, use "USD". ' +
+    'If something is not mentioned, use null. Do not invent details.';
+
+  const answerText = await askAi(instructions + '\n\nRequest: ' + userText, true);
+  return JSON.parse(answerText);
+}
+
+// Job 2: write a short cash-flow summary from numbers we already worked out
+async function writeSummary(facts) {
+  const instructions =
+    'You are a friendly assistant for a freelancer. ' +
+    'Below are facts about their invoices, already calculated. ' +
+    'Write a short summary in plain English, at most 5 sentences. ' +
+    'Use only the numbers given. Do not do your own maths and do not invent anything. ' +
+    'Mention overdue invoices first if there are any. ' +
+    'End with one clear suggested next step.';
+
+  const answerText = await askAi(instructions + '\n\nFacts:\n' + JSON.stringify(facts, null, 2), false);
+  return answerText.trim();
+}
+
+module.exports = { parseInvoiceText, writeSummary };

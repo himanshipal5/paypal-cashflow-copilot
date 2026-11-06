@@ -4,9 +4,10 @@
 require('dotenv').config();
 const express = require('express');
 const { paypalRequest } = require('./paypal');
-const { parseInvoiceText } = require('./ai');
+const { parseInvoiceText, writeSummary } = require('./ai');
 const { checkInvoiceData, buildPaypalInvoice } = require('./invoice');
 const path = require('path');
+const { buildFacts } = require('./summary');
 
 const app = express();
 app.use(express.json());
@@ -168,6 +169,33 @@ app.get('/api/invoices', async function (req, res) {
       'GET'
     );
     res.json(result);
+  } catch (error) {
+    console.log('Error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+// Route 8: the cash-flow summary (numbers from code, words from the AI)
+app.get('/api/summary', async function (req, res) {
+  try {
+    // Get the invoices from PayPal
+    const result = await paypalRequest(
+      '/v2/invoicing/invoices?page=1&page_size=20&total_required=true',
+      'GET'
+    );
+    const invoices = result.items || [];
+
+    // Work out the numbers in code
+    const facts = buildFacts(invoices);
+
+    // Try the AI, but don't fail the whole request if the AI is busy
+    let summaryText = null;
+    try {
+      summaryText = await writeSummary(facts);
+    } catch (aiError) {
+      console.log('AI summary failed:', aiError.message);
+    }
+
+    res.json({ facts: facts, summary: summaryText });
   } catch (error) {
     console.log('Error:', error.message);
     res.status(500).json({ error: error.message });

@@ -35,3 +35,8 @@ Plain HTML page served by Express: type a request, check and edit the AI's answe
 - Deployed on Render (free plan): https://paypal-cashflow-copilot.onrender.com
 - Tested the live app: the table loads, the AI reads the request, and a new invoice (0005) was created and sent
 - The first AI request on the live site was slow (free plan waking up, plus Google being busy)
+
+## 6 Nov
+- Added a cash-flow summary. The server works out the totals and which invoices are overdue or due soon in code (summary.js); the AI only writes the words from those numbers
+- The new Gemini model was often busy (503). I switched the main model to the older, steadier one, and made the summary route still return the numbers if the AI fails
+- Moved the retry and backup-model logic in ai.js into one shared function used by both AI jobs
