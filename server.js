@@ -9,8 +9,35 @@ const { checkInvoiceData, buildPaypalInvoice } = require('./invoice');
 const path = require('path');
 const { buildFacts } = require('./summary');
 const { buildReminderFacts } = require('./reminder');
+const { verifyWebhook, storeEvent, getRecentEvents } = require('./webhooks');
 
 const app = express();
+
+// Webhook route. It must be BEFORE express.json() because we need the raw request text.
+app.post('/api/webhooks/paypal', express.raw({ type: '*/*' }), async function (req, res) {
+  try {
+    const rawBody = req.body.toString('utf8');
+
+    // Check that this really came from PayPal
+    const isReal = await verifyWebhook(req.headers, rawBody);
+
+    if (!isReal) {
+      console.log('Webhook rejected: signature check failed');
+      return res.status(400).json({ error: 'Invalid signature' });
+    }
+
+    // It is real, so save it
+    const event = JSON.parse(rawBody);
+    const isNew = storeEvent(event);
+
+    console.log('Webhook received:', event.event_type, isNew ? '(new)' : '(duplicate, ignored)');
+    res.status(200).json({ received: true });
+  } catch (error) {
+    console.log('Webhook error:', error.message);
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.use(express.json());
  
 // Serve the web page from the "public" folder
@@ -245,6 +272,11 @@ app.post('/api/invoices/:id/remind', async function (req, res) {
     console.log('Error:', error.message);
     res.status(500).json({ error: error.message });
   }
+});
+
+// Route 11: the recent webhook events, for the "Live activity" box
+app.get('/api/events', function (req, res) {
+  res.json({ events: getRecentEvents() });
 });
 
 // Start the server
