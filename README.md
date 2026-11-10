@@ -8,7 +8,25 @@ Type a normal sentence like "Invoice Rohan $50 for logo design, due in 10 days".
 **Demo video:** 
 
 ## Screenshots
+**Create an invoice from a sentence, then check it before anything is sent**
 
+![Dashboard](docs/01-dashboard.png)
+![Confirm step](docs/02-confirm.png)
+
+**The invoice reaches the client, who pays it**
+
+![Invoices](docs/03-invoices.png)
+![What the client sees](docs/04-client-invoice.png)
+![Payment successful](docs/05-payment-success.png)
+
+**PayPal tells the server about the payment (webhook), and the dashboard updates by itself**
+
+![Live activity](docs/06-live-activity.png)
+
+**Cash-flow summary and AI-drafted reminder (a person approves before it is sent)**
+
+![Summary](docs/07-summary.png)
+![Reminder draft](docs/08-reminder.png)
 
 ## Why I built it
 
