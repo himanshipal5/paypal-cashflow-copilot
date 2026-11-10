@@ -4,112 +4,377 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>PayPal Cash-Flow Copilot</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%92%B8%3C/text%3E%3C/svg%3E" />
   <style>
-    body { font-family: Arial, sans-serif; max-width: 900px; margin: 30px auto; padding: 0 16px; color: #1a1a1a; }
-    h1 { margin-bottom: 4px; }
-    .subtitle { color: #666; margin-top: 0; }
-    .box { border: 1px solid #ddd; border-radius: 8px; padding: 16px; margin: 16px 0; }
-    textarea, input { width: 100%; padding: 8px; margin: 4px 0 10px; box-sizing: border-box; font-size: 14px; }
-    button { padding: 10px 16px; font-size: 14px; cursor: pointer; border: none; border-radius: 6px; background: #0070ba; color: white; }
-    button:disabled { opacity: 0.5; cursor: not-allowed; }
-    table { width: 100%; border-collapse: collapse; }
-    th, td { text-align: left; padding: 8px; border-bottom: 1px solid #eee; }
-    .item-row { display: flex; gap: 8px; }
+    :root {
+      --blue: #0070ba;
+      --navy: #003087;
+      --bg: #f4f6fa;
+      --card: #ffffff;
+      --text: #1c2430;
+      --muted: #667085;
+      --line: #e4e7ec;
+      --green: #067647;
+      --green-bg: #d1fadf;
+      --blue-text: #1d4ed8;
+      --blue-bg: #dbeafe;
+      --red: #b42318;
+      --red-bg: #fee4e2;
+      --gray-bg: #eef0f3;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+
+    .container { max-width: 960px; margin: 0 auto; }
+
+    /* Top banner */
+    .hero {
+      background: linear-gradient(135deg, var(--navy), var(--blue));
+      color: #ffffff;
+      padding: 36px 16px 76px;
+    }
+    .hero h1 { margin: 0 0 6px; font-size: 30px; }
+    .hero p { margin: 0; opacity: 0.92; }
+    .tag {
+      display: inline-block;
+      margin-top: 14px;
+      padding: 4px 12px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.18);
+      font-size: 13px;
+    }
+
+    main.container { margin-top: -46px; padding: 0 16px 24px; }
+
+    /* Cards */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 16px;
+      box-shadow: 0 1px 3px rgba(16, 24, 40, 0.06);
+    }
+    .card h2 { margin: 0 0 4px; font-size: 18px; }
+    .hint { margin: 0 0 14px; color: var(--muted); font-size: 14px; }
+
+    /* Form fields */
+    label { display: block; font-size: 13px; font-weight: 600; margin: 10px 0 4px; }
+    input, textarea {
+      width: 100%;
+      padding: 10px 12px;
+      font-size: 14px;
+      font-family: inherit;
+      border: 1px solid #cfd4dc;
+      border-radius: 8px;
+      background: #ffffff;
+    }
+    input:focus, textarea:focus {
+      outline: 2px solid var(--blue);
+      outline-offset: 1px;
+      border-color: var(--blue);
+    }
+    .row { display: flex; gap: 10px; }
+    .row > div { flex: 1; }
+    .item-row { display: grid; grid-template-columns: 3fr 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+
+    /* Example sentences */
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 14px; }
+    .chip {
+      padding: 5px 12px;
+      font-size: 13px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+      background: var(--gray-bg);
+      color: var(--text);
+      cursor: pointer;
+    }
+    .chip:hover { background: var(--blue-bg); border-color: var(--blue); }
+
+    /* Buttons */
+    button { font-family: inherit; }
+    .btn {
+      padding: 10px 18px;
+      font-size: 14px;
+      font-weight: 600;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      background: var(--blue);
+      color: #ffffff;
+    }
+    .btn:hover { background: var(--navy); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn.secondary { background: #ffffff; color: var(--blue); border: 1px solid var(--blue); }
+    .btn.secondary:hover { background: var(--blue-bg); }
+    .btn.small { padding: 6px 12px; font-size: 13px; }
+    .actions { display: flex; gap: 10px; margin-top: 14px; }
+
+    /* Messages */
+    .message { margin: 12px 0 0; font-size: 14px; }
+    .message.info { color: var(--muted); }
+    .message.success { color: var(--green); }
+    .message.error { color: var(--red); }
+    .spinner {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      margin-right: 8px;
+      border: 2px solid var(--line);
+      border-top-color: var(--blue);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      vertical-align: -1px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Table */
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th {
+      text-align: left;
+      padding: 10px 8px;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--muted);
+      border-bottom: 1px solid var(--line);
+    }
+    td { padding: 12px 8px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    .empty { text-align: center; color: var(--muted); padding: 24px 8px; }
+
+    /* Status badges */
+    .badge {
+      display: inline-block;
+      padding: 2px 10px;
+      font-size: 12px;
+      font-weight: 700;
+      border-radius: 999px;
+      margin-right: 4px;
+    }
+    .badge.gray { background: var(--gray-bg); color: #475467; }
+    .badge.blue { background: var(--blue-bg); color: var(--blue-text); }
+    .badge.green { background: var(--green-bg); color: var(--green); }
+    .badge.red { background: var(--red-bg); color: var(--red); }
+
+    /* Summary cards */
+    .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 14px 0; }
+    .stat { background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+    .stat .label { font-size: 12px; color: var(--muted); }
+    .stat .value { font-size: 20px; font-weight: 700; margin-top: 2px; }
+    .summary-text { margin: 0; font-size: 15px; }
+
+    /* Live activity */
+    .activity { list-style: none; margin: 0; padding: 0; }
+    .activity li { padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+    .activity li:last-child { border-bottom: none; }
+    .dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      margin-right: 8px;
+      border-radius: 50%;
+      background: var(--green);
+    }
+
     .hidden { display: none; }
-    .error { color: #b00020; }
+
+    footer { text-align: center; color: var(--muted); font-size: 13px; padding: 0 16px 32px; }
+
+    @media (max-width: 640px) {
+      .stats { grid-template-columns: repeat(2, 1fr); }
+      .row { flex-direction: column; gap: 0; }
+      .hero h1 { font-size: 24px; }
+    }
   </style>
 </head>
 <body>
-  <h1>PayPal Cash-Flow Copilot</h1>
-  <p class="subtitle">Type what you want to invoice. The AI reads it, you confirm, PayPal sends it.</p>
+  <header class="hero">
+    <div class="container">
+      <h1>PayPal Cash-Flow Copilot</h1>
+      <p>Type what you want to invoice. The AI reads it, you confirm, PayPal sends it.</p>
+      <span class="tag">Sandbox demo - no real money</span>
+    </div>
+  </header>
 
-  <!-- Part 1: type the request -->
-  <div class="box">
-    <h3>1. Describe the invoice</h3>
-    <textarea id="requestText" rows="3" placeholder="Example: Invoice Rohan $50 for logo design, due in 10 days"></textarea>
-    <button id="parseButton">Read with AI</button>
-    <p id="message"></p>
-  </div>
+  <main class="container">
 
-  <!-- Part 2: check the details (hidden until the AI has answered) -->
-  <div class="box hidden" id="confirmBox">
-    <h3>2. Check the details</h3>
-    <label>Customer name</label>
-    <input id="customerName" />
-    <label>Customer email</label>
-    <input id="customerEmail" placeholder="Leave empty to use the test customer" />
-    <label>Currency</label>
-    <input id="currency" />
-    <label>Due in (days)</label>
-    <input id="dueDays" type="number" />
-    <label>Items (name, quantity, price)</label>
-    <div id="itemsContainer"></div>
-    <button id="sendButton">Confirm, create and send invoice</button>
-  </div>
-  <!-- Cash-flow summary -->
-  <div class="box">
-    <h3>Cash-flow summary</h3>
-    <button id="summaryButton">Summarise my cash flow</button>
-    <p id="summaryStats"></p>
-    <p id="summaryText"></p>
-  </div>
+    <!-- 1. Create an invoice -->
+    <section class="card">
+      <h2>1. Create an invoice</h2>
+      <p class="hint">Describe it in plain English. Nothing is created until you confirm.</p>
+      <textarea id="requestText" rows="3" placeholder="Example: Invoice Rohan $50 for logo design, due in 10 days"></textarea>
+      <div class="chips" id="chips"></div>
+      <button class="btn" id="parseButton">Read with AI</button>
+      <p class="message" id="parseMessage"></p>
+    </section>
 
-    <!-- Reminder draft (hidden until you click "Draft reminder") -->
-  <div class="box hidden" id="reminderBox">
-    <h3>Reminder draft</h3>
-    <p id="reminderInfo"></p>
-    <label>Subject</label>
-    <input id="reminderSubject" />
-    <label>Message</label>
-    <textarea id="reminderNote" rows="5"></textarea>
-    <button id="sendReminderButton">Approve and send reminder</button>
-    <button id="cancelReminderButton">Cancel</button>
-    <p id="reminderMessage"></p>
-  </div>
+    <!-- Confirm step (hidden until the AI has answered) -->
+    <section class="card hidden" id="confirmCard">
+      <h2>Check the details</h2>
+      <p class="hint">The AI can make mistakes, so please check and edit before confirming.</p>
+      <div class="row">
+        <div>
+          <label for="customerName">Customer name</label>
+          <input id="customerName" />
+        </div>
+        <div>
+          <label for="customerEmail">Customer email</label>
+          <input id="customerEmail" placeholder="Leave empty to use the test customer" />
+        </div>
+      </div>
+      <div class="row">
+        <div>
+          <label for="currency">Currency</label>
+          <input id="currency" />
+        </div>
+        <div>
+          <label for="dueDays">Due in (days)</label>
+          <input id="dueDays" type="number" />
+        </div>
+      </div>
+      <label>Items (name, quantity, price)</label>
+      <div id="itemsContainer"></div>
+      <div class="actions">
+        <button class="btn" id="sendButton">Confirm, create and send invoice</button>
+        <button class="btn secondary" id="cancelConfirmButton">Cancel</button>
+      </div>
+      <p class="message" id="confirmMessage"></p>
+    </section>
 
-    <!-- Live activity (filled by webhooks) -->
-  <div class="box">
-    <h3>Live activity</h3>
-    <p id="activityEmpty">No payment events yet. When a customer pays, PayPal tells us and it shows up here.</p>
-    <ul id="activityList"></ul>
-  </div>
+    <!-- 2. Live activity -->
+    <section class="card">
+      <h2>2. Live activity</h2>
+      <p class="hint">When a customer pays, PayPal tells our server (a webhook) and it shows up here.</p>
+      <p class="message info" id="activityEmpty">No payment events yet.</p>
+      <ul class="activity" id="activityList"></ul>
+    </section>
 
-  <!-- Part 3: the invoice table -->
-  <div class="box">
-    <h3>3. Your invoices</h3>
-    <table>
-      <thead>
-        <tr>
-          <th>Number</th>
-          <th>Customer</th>
-          <th>Amount</th>
-          <th>Status</th>
-          <th>Due date</th>
-          <th>Action</th>
-        </tr>
-      </thead>
-      <tbody id="invoiceRows"></tbody>
-    </table>
-  </div>
+    <!-- 3. Invoices -->
+    <section class="card">
+      <h2>3. Your invoices</h2>
+      <p class="hint">Loaded straight from PayPal.</p>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Number</th>
+              <th>Customer</th>
+              <th>Amount</th>
+              <th>Status</th>
+              <th>Due date</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="invoiceRows"></tbody>
+        </table>
+      </div>
+
+      <!-- Reminder draft (hidden until you click "Draft reminder") -->
+      <div class="hidden" id="reminderBox" style="margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--line);">
+        <h2>Reminder draft</h2>
+        <p class="hint" id="reminderInfo"></p>
+        <label for="reminderSubject">Subject</label>
+        <input id="reminderSubject" />
+        <label for="reminderNote">Message</label>
+        <textarea id="reminderNote" rows="5"></textarea>
+        <div class="actions">
+          <button class="btn" id="sendReminderButton">Approve and send reminder</button>
+          <button class="btn secondary" id="cancelReminderButton">Cancel</button>
+        </div>
+        <p class="message" id="reminderMessage"></p>
+      </div>
+    </section>
+
+    <!-- 4. Cash-flow summary -->
+    <section class="card">
+      <h2>4. Cash-flow summary</h2>
+      <p class="hint">The numbers are worked out by our code. The AI only writes the explanation.</p>
+      <button class="btn" id="summaryButton">Summarise my cash flow</button>
+      <div class="stats hidden" id="summaryStats"></div>
+      <p class="summary-text" id="summaryText"></p>
+    </section>
+
+  </main>
+
+  <footer>
+    Built by Himanshi Pal with Node.js, Express, the PayPal Invoicing API and Gemini.
+  </footer>
 
   <script>
-    // Find the parts of the page we need to change
+    // ---------- Find the parts of the page we need ----------
     const requestText = document.getElementById('requestText');
+    const chips = document.getElementById('chips');
     const parseButton = document.getElementById('parseButton');
-    const messageBox = document.getElementById('message');
-    const confirmBox = document.getElementById('confirmBox');
+    const parseMessage = document.getElementById('parseMessage');
+
+    const confirmCard = document.getElementById('confirmCard');
     const customerName = document.getElementById('customerName');
     const customerEmail = document.getElementById('customerEmail');
     const currency = document.getElementById('currency');
     const dueDays = document.getElementById('dueDays');
     const itemsContainer = document.getElementById('itemsContainer');
     const sendButton = document.getElementById('sendButton');
+    const cancelConfirmButton = document.getElementById('cancelConfirmButton');
+    const confirmMessage = document.getElementById('confirmMessage');
+
+    const activityList = document.getElementById('activityList');
+    const activityEmpty = document.getElementById('activityEmpty');
+
     const invoiceRows = document.getElementById('invoiceRows');
 
-    // Show a message under the first box
-    function showMessage(text, isError) {
-      messageBox.textContent = text;
-      messageBox.className = isError ? 'error' : '';
+    const reminderBox = document.getElementById('reminderBox');
+    const reminderInfo = document.getElementById('reminderInfo');
+    const reminderSubject = document.getElementById('reminderSubject');
+    const reminderNote = document.getElementById('reminderNote');
+    const sendReminderButton = document.getElementById('sendReminderButton');
+    const cancelReminderButton = document.getElementById('cancelReminderButton');
+    const reminderMessage = document.getElementById('reminderMessage');
+
+    const summaryButton = document.getElementById('summaryButton');
+    const summaryStats = document.getElementById('summaryStats');
+    const summaryText = document.getElementById('summaryText');
+
+    // Invoice statuses that mean "waiting for payment"
+    const waitingStatuses = ['SENT', 'UNPAID', 'PARTIALLY_PAID'];
+
+    // ---------- Small helpers ----------
+
+    // Show a message under a card. type is 'info', 'success' or 'error'.
+    function showMessage(target, text, type, withSpinner) {
+      target.className = 'message ' + type;
+      target.textContent = text;
+
+      if (withSpinner) {
+        const spinner = document.createElement('span');
+        spinner.className = 'spinner';
+        target.prepend(spinner);
+      }
+    }
+
+    // Turn technical errors into friendly ones (the technical text goes to the console)
+    function friendlyError(message) {
+      console.log('Technical error:', message);
+
+      if (message.includes('invalid_client') || message.includes('Could not get token')) {
+        return 'We could not connect to PayPal just now. Please wait a minute and try again.';
+      }
+      if (message.includes('AI error')) {
+        return 'The AI is busy right now. Please try again in a moment.';
+      }
+      if (message.includes('Failed to fetch')) {
+        return 'The server is waking up or cannot be reached. Please try again in a few seconds.';
+      }
+      return message;
     }
 
     // Add one cell to a table row
@@ -117,7 +382,51 @@
       const cell = document.createElement('td');
       cell.textContent = text;
       row.appendChild(cell);
+      return cell;
     }
+
+    // Make a small coloured label like SENT or PAID
+    function makeBadge(text, color) {
+      const badge = document.createElement('span');
+      badge.className = 'badge ' + color;
+      badge.textContent = text;
+      return badge;
+    }
+
+    // Pick a colour for each invoice status
+    function statusColor(status) {
+      if (status === 'PAID' || status === 'MARKED_AS_PAID') {
+        return 'green';
+      }
+      if (status === 'SENT' || status === 'UNPAID' || status === 'PARTIALLY_PAID') {
+        return 'blue';
+      }
+      if (status === 'CANCELLED' || status === 'REFUNDED') {
+        return 'red';
+      }
+      return 'gray';
+    }
+
+    // ---------- Example sentences ----------
+    const examples = [
+      'Invoice Rohan $50 for logo design, due in 10 days',
+      'Invoice Meera $120 for website banner, due in 7 days',
+      'Invoice Arjun 2 posters at $30 each, due in 5 days',
+    ];
+
+    examples.forEach(function (sentence) {
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'chip';
+      chip.textContent = sentence;
+      chip.addEventListener('click', function () {
+        requestText.value = sentence;
+        requestText.focus();
+      });
+      chips.appendChild(chip);
+    });
+
+    // ---------- Confirm form ----------
 
     // Add one row of inputs (name, quantity, price) for an item
     function addItemRow(item) {
@@ -157,7 +466,8 @@
         addItemRow(item);
       });
 
-      confirmBox.classList.remove('hidden');
+      confirmMessage.textContent = '';
+      confirmCard.classList.remove('hidden');
     }
 
     // Read the confirm form back into an object
@@ -183,8 +493,7 @@
       };
     }
 
-    // Load the invoice table from our server
-       // Load the invoice table from our server
+    // ---------- The invoice table ----------
     async function loadInvoices() {
       invoiceRows.innerHTML = '';
 
@@ -198,10 +507,22 @@
 
         const invoices = data.items || [];
 
+        // No invoices yet
+        if (invoices.length === 0) {
+          const emptyRow = document.createElement('tr');
+          const emptyCell = addCell(emptyRow, 'No invoices yet. Create your first one above.');
+          emptyCell.colSpan = 6;
+          emptyCell.className = 'empty';
+          invoiceRows.appendChild(emptyRow);
+          return;
+        }
+
+        const todayText = new Date().toISOString().slice(0, 10);
+
         invoices.forEach(function (invoice) {
           const row = document.createElement('tr');
 
-          // Work out the customer name or email, if PayPal gave us one
+          // The customer name, or their email if PayPal gave no name
           let customer = '-';
           if (invoice.primary_recipients && invoice.primary_recipients[0]) {
             const billing = invoice.primary_recipients[0].billing_info || {};
@@ -212,7 +533,7 @@
             }
           }
 
-          // Work out the amount and due date
+          // The amount and the due date
           let amount = '-';
           if (invoice.amount) {
             amount = invoice.amount.value + ' ' + invoice.amount.currency_code;
@@ -223,45 +544,57 @@
             dueDate = invoice.detail.payment_term.due_date;
           }
 
+          const isWaiting = waitingStatuses.includes(invoice.status);
+
           addCell(row, invoice.detail ? invoice.detail.invoice_number : '-');
           addCell(row, customer);
           addCell(row, amount);
-          addCell(row, invoice.status);
+
+          // Status cell: a coloured badge, plus a red OVERDUE tag if the date has passed
+          const statusCell = document.createElement('td');
+          statusCell.appendChild(makeBadge(invoice.status, statusColor(invoice.status)));
+          if (isWaiting && dueDate !== '-' && dueDate < todayText) {
+            statusCell.appendChild(makeBadge('OVERDUE', 'red'));
+          }
+          row.appendChild(statusCell);
+
           addCell(row, dueDate);
 
           // Action cell: a reminder button for invoices that are waiting for payment
           const actionCell = document.createElement('td');
-          const waitingStatuses = ['SENT', 'UNPAID', 'PARTIALLY_PAID'];
-
-          if (waitingStatuses.includes(invoice.status)) {
+          if (isWaiting) {
             const reminderButton = document.createElement('button');
+            reminderButton.className = 'btn secondary small';
             reminderButton.textContent = 'Draft reminder';
             reminderButton.addEventListener('click', function () {
               draftReminder(invoice.id, invoice.detail.invoice_number);
             });
             actionCell.appendChild(reminderButton);
           }
-
           row.appendChild(actionCell);
+
           invoiceRows.appendChild(row);
         });
       } catch (error) {
-        const row = document.createElement('tr');
-        addCell(row, error.message);
-        invoiceRows.appendChild(row);
+        const errorRow = document.createElement('tr');
+        const errorCell = addCell(errorRow, friendlyError(error.message));
+        errorCell.colSpan = 6;
+        errorCell.className = 'empty';
+        invoiceRows.appendChild(errorRow);
       }
     }
-    // When "Read with AI" is clicked
+
+    // ---------- "Read with AI" ----------
     parseButton.addEventListener('click', async function () {
       const text = requestText.value.trim();
 
       if (!text) {
-        showMessage('Please type a request first.', true);
+        showMessage(parseMessage, 'Please type a request first.', 'error');
         return;
       }
 
       parseButton.disabled = true;
-      showMessage('Asking the AI...', false);
+      showMessage(parseMessage, 'Asking the AI...', 'info', true);
 
       try {
         const response = await fetch('/api/parse-invoice', {
@@ -276,18 +609,19 @@
         }
 
         fillConfirmForm(data);
-        showMessage('Please check the details below, then confirm.', false);
+        showMessage(parseMessage, 'Done. Please check the details below.', 'success');
+        confirmCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
       } catch (error) {
-        showMessage(error.message, true);
+        showMessage(parseMessage, friendlyError(error.message), 'error');
       }
 
       parseButton.disabled = false;
     });
 
-    // When "Confirm, create and send invoice" is clicked
+    // ---------- "Confirm, create and send invoice" ----------
     sendButton.addEventListener('click', async function () {
       sendButton.disabled = true;
-      showMessage('Creating the invoice in PayPal...', false);
+      showMessage(confirmMessage, 'Creating the invoice in PayPal...', 'info', true);
 
       try {
         const invoiceData = readConfirmForm();
@@ -314,88 +648,33 @@
           throw new Error(sent.error || 'Could not send the invoice');
         }
 
-        showMessage('Invoice sent!', false);
-        confirmBox.classList.add('hidden');
+        confirmCard.classList.add('hidden');
         requestText.value = '';
+        showMessage(parseMessage, 'Invoice created and sent to the customer.', 'success');
         loadInvoices();
       } catch (error) {
-        showMessage(error.message, true);
+        showMessage(confirmMessage, friendlyError(error.message), 'error');
       }
 
       sendButton.disabled = false;
     });
-    // The cash-flow summary
-    const summaryButton = document.getElementById('summaryButton');
-    const summaryStats = document.getElementById('summaryStats');
-    const summaryText = document.getElementById('summaryText');
 
-    summaryButton.addEventListener('click', async function () {
-      summaryButton.disabled = true;
-      summaryStats.textContent = '';
-      summaryText.className = '';
-      summaryText.textContent = 'Reading your invoices and asking the AI...';
-
-      try {
-        const response = await fetch('/api/summary');
-        const data = await response.json();
-
-        if (!response.ok) {
-          throw new Error(data.error || 'Could not make the summary');
-        }
-
-        const facts = data.facts;
-
-        // Build one line of real numbers from the facts (worked out by code, not the AI)
-        const outstandingParts = [];
-        for (const currency in facts.outstanding_by_currency) {
-          outstandingParts.push(facts.outstanding_by_currency[currency].toFixed(2) + ' ' + currency);
-        }
-
-        const outstandingText = outstandingParts.join(', ') || 'none';
-
-        summaryStats.textContent =
-          'Outstanding: ' + outstandingText +
-          '  |  Overdue: ' + facts.overdue.length +
-          '  |  Due within 7 days: ' + facts.due_soon.length +
-          '  |  Paid: ' + facts.paid_count;
-
-                if (data.summary) {
-          summaryText.textContent = data.summary;
-        } else {
-          summaryText.textContent =
-            'The AI is busy right now, so these are just the numbers. Try again in a minute for the written summary.';
-        }
-      } catch (error) {
-        summaryText.className = 'error';
-        summaryText.textContent = error.message;
-      }
-
-      summaryButton.disabled = false;
+    cancelConfirmButton.addEventListener('click', function () {
+      confirmCard.classList.add('hidden');
     });
 
-
-    // The reminder feature
-    const reminderBox = document.getElementById('reminderBox');
-    const reminderInfo = document.getElementById('reminderInfo');
-    const reminderSubject = document.getElementById('reminderSubject');
-    const reminderNote = document.getElementById('reminderNote');
-    const sendReminderButton = document.getElementById('sendReminderButton');
-    const cancelReminderButton = document.getElementById('cancelReminderButton');
-    const reminderMessage = document.getElementById('reminderMessage');
-
-    // Remember which invoice the reminder is for
+    // ---------- Reminder ----------
     let reminderInvoiceId = null;
 
-    // Ask the AI to draft a reminder and show it for editing
     async function draftReminder(invoiceId, invoiceNumber) {
       reminderInvoiceId = invoiceId;
       reminderBox.classList.remove('hidden');
       reminderSubject.value = '';
       reminderNote.value = '';
       reminderMessage.textContent = '';
-      reminderMessage.className = '';
       reminderInfo.textContent = 'Asking the AI to draft a reminder for invoice ' + invoiceNumber + '...';
       sendReminderButton.disabled = true;
+      reminderBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
       try {
         const response = await fetch('/api/invoices/' + invoiceId + '/draft-reminder', {
@@ -414,16 +693,13 @@
         sendReminderButton.disabled = false;
       } catch (error) {
         reminderInfo.textContent = '';
-        reminderMessage.className = 'error';
-        reminderMessage.textContent = error.message;
+        showMessage(reminderMessage, friendlyError(error.message), 'error');
       }
     }
 
-    // Send the approved reminder
     sendReminderButton.addEventListener('click', async function () {
       sendReminderButton.disabled = true;
-      reminderMessage.className = '';
-      reminderMessage.textContent = 'Sending the reminder...';
+      showMessage(reminderMessage, 'Sending the reminder...', 'info', true);
 
       try {
         const response = await fetch('/api/invoices/' + reminderInvoiceId + '/remind', {
@@ -440,22 +716,84 @@
           throw new Error(data.error || 'Could not send the reminder');
         }
 
-        reminderMessage.textContent = 'Reminder sent!';
+        showMessage(reminderMessage, 'Reminder sent!', 'success');
       } catch (error) {
-        reminderMessage.className = 'error';
-        reminderMessage.textContent = error.message;
+        showMessage(reminderMessage, friendlyError(error.message), 'error');
         sendReminderButton.disabled = false;
       }
     });
 
-    // Close the reminder box without sending
     cancelReminderButton.addEventListener('click', function () {
       reminderBox.classList.add('hidden');
     });
 
-    // Live activity from webhooks
-    const activityList = document.getElementById('activityList');
-    const activityEmpty = document.getElementById('activityEmpty');
+    // ---------- Cash-flow summary ----------
+
+    // Make one small number card
+    function makeStat(label, value) {
+      const card = document.createElement('div');
+      card.className = 'stat';
+
+      const labelElement = document.createElement('div');
+      labelElement.className = 'label';
+      labelElement.textContent = label;
+
+      const valueElement = document.createElement('div');
+      valueElement.className = 'value';
+      valueElement.textContent = value;
+
+      card.appendChild(labelElement);
+      card.appendChild(valueElement);
+      return card;
+    }
+
+    summaryButton.addEventListener('click', async function () {
+      summaryButton.disabled = true;
+      summaryStats.classList.add('hidden');
+      summaryText.className = 'summary-text message info';
+      summaryText.textContent = 'Reading your invoices and asking the AI...';
+
+      try {
+        const response = await fetch('/api/summary');
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Could not make the summary');
+        }
+
+        const facts = data.facts;
+
+        // Join the outstanding amounts, for example "205.00 USD"
+        const outstandingParts = [];
+        for (const code in facts.outstanding_by_currency) {
+          outstandingParts.push(facts.outstanding_by_currency[code].toFixed(2) + ' ' + code);
+        }
+        const outstandingText = outstandingParts.join(', ') || 'None';
+
+        summaryStats.innerHTML = '';
+        summaryStats.appendChild(makeStat('Outstanding', outstandingText));
+        summaryStats.appendChild(makeStat('Overdue', String(facts.overdue.length)));
+        summaryStats.appendChild(makeStat('Due within 7 days', String(facts.due_soon.length)));
+        summaryStats.appendChild(makeStat('Paid', String(facts.paid_count)));
+        summaryStats.classList.remove('hidden');
+
+        if (data.summary) {
+          summaryText.className = 'summary-text';
+          summaryText.textContent = data.summary;
+        } else {
+          summaryText.className = 'summary-text message info';
+          summaryText.textContent =
+            'The AI is busy right now, so these are just the numbers. Try again in a minute for the written summary.';
+        }
+      } catch (error) {
+        summaryText.className = 'summary-text message error';
+        summaryText.textContent = friendlyError(error.message);
+      }
+
+      summaryButton.disabled = false;
+    });
+
+    // ---------- Live activity (from webhooks) ----------
     let lastEventId; // starts empty, so the first check does not refresh the table
 
     // Turn PayPal's event name into something friendly
@@ -482,8 +820,12 @@
 
         events.forEach(function (event) {
           const item = document.createElement('li');
-          const time = new Date(event.received_at).toLocaleTimeString();
 
+          const dot = document.createElement('span');
+          dot.className = 'dot';
+          item.appendChild(dot);
+
+          const time = new Date(event.received_at).toLocaleTimeString();
           let text = friendlyEventName(event.type);
           if (event.invoice_number) {
             text = text + ': invoice ' + event.invoice_number;
@@ -492,7 +834,7 @@
             text = text + ' (' + event.amount + ')';
           }
 
-          item.textContent = text + ' at ' + time;
+          item.appendChild(document.createTextNode(text + ' at ' + time));
           activityList.appendChild(item);
         });
 
@@ -514,9 +856,9 @@
       }
     }
 
-    // Load the table when the page opens
+    // ---------- Start ----------
     loadInvoices();
-        loadActivity();
+    loadActivity();
     setInterval(loadActivity, 5000);
   </script>
 </body>
