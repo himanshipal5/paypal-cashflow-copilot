@@ -45,3 +45,27 @@ Plain HTML page served by Express: type a request, check and edit the AI's answe
 - Added AI-drafted reminders with approval. The "Draft reminder" button asks the AI to write a short message from the invoice facts, I can edit it, and only after I approve does PayPal send it (invoice remind API)
 - Hit a bug: the button code was pasted above the wrong appendChild line, so no buttons showed. Replaced the whole loadInvoices function to fix it
 - Dates and amounts are worked out in code (reminder.js); the AI only writes the words
+
+## 9 Nov: Webhooks
+
+- Added webhooks so the dashboard finds out about a payment without me refreshing. Before, the page only knew the status when it loaded.
+- PayPal now calls my server at /api/webhooks/paypal when an invoice event happens (I subscribed to invoice paid, refunded and cancelled).
+- The server does not trust the message straight away. It asks PayPal to verify the signature (webhooks.js) so someone cannot fake a "paid" event. I stored the Webhook ID as PAYPAL_WEBHOOK_ID in .env and in Render's environment variables.
+- PayPal can send the same event twice, so the server remembers event ids and ignores repeats.
+- The webhook route has to come before express.json() in server.js, because the signature check needs the raw text of the request.
+- Events are kept in the server's memory only (no database), so they disappear when the app restarts. Fine for a demo.
+- The dashboard has a "Live activity" box that checks for new events every 5 seconds and refreshes the invoice table when a payment arrives.
+- Tested on the live site with a real sandbox payment: paid invoice 0009 as the customer, and Live activity showed "Invoice paid: invoice 0009 (35.00 USD)" while the table changed to PAID.
+- I can't test webhooks on localhost, because PayPal cannot reach my laptop. Every test needed a push and a Render deploy.
+
+## 9 and 10 Nov: Problem still open
+
+- The live site keeps showing "Could not get token: invalid_client, Client Authentication failed". It happened during my interview too.
+- What I tried: re-entering the Client ID and Secret in Render and in my local .env. It works again afterwards, then comes back after a while. I noticed it also seems to go away after logging in to PayPal again.
+- I do not know the cause yet. My plan is to run node paypal-test.js on my laptop the next time it fails, before changing anything, to see if the problem is PayPal's side or Render's side.
+
+## 10 Nov: Polish
+
+- Rewrote public/index.html: blue banner, cards, coloured status badges (grey DRAFT, blue SENT, green PAID), a red OVERDUE tag, example sentences under the text box, number cards for the cash-flow summary, loading spinners, and friendlier error messages.
+- Technical errors are still written to the browser console, so I can debug them.
+- Checked the OVERDUE tag: invoice 0005 is due on 10 Nov, so it only counts as overdue from 11 Nov (an invoice due today is not late yet).
