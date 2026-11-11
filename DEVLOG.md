@@ -69,3 +69,8 @@ Plain HTML page served by Express: type a request, check and edit the AI's answe
 - Rewrote public/index.html: blue banner, cards, coloured status badges (grey DRAFT, blue SENT, green PAID), a red OVERDUE tag, example sentences under the text box, number cards for the cash-flow summary, loading spinners, and friendlier error messages.
 - Technical errors are still written to the browser console, so I can debug them.
 - Checked the OVERDUE tag: invoice 0005 is due on 10 Nov, so it only counts as overdue from 11 Nov (an invoice due today is not late yet).
+
+## 10 Nov: The credentials error is solved
+- The "invalid_client / Client Authentication failed" error was caused by a wrong PAYPAL_BASE_URL. The value was https://sandbox.paypal.com (the website) instead of https://api-m.sandbox.paypal.com (the API). With the website address, even correct keys were rejected.
+- I found it by testing on my laptop first with node paypal-test.js, then comparing the exact value of each variable with grep and node -e, instead of just re-entering keys again.
+- Lesson: when an error looks like a credentials problem, check the address and every setting, not only the keys.n

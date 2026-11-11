@@ -5,7 +5,7 @@ Type a normal sentence like "Invoice Rohan $50 for logo design, due in 10 days".
 **Live demo:** https://paypal-cashflow-copilot.onrender.com
 (It runs on a free plan, so the first load can take up to a minute while it wakes up. Sandbox only: no real money is used.)
 
-**Demo video:** 
+**Demo video:**  https://youtu.be/iRnFbU4DzB4
 
 ## Screenshots
 **Create an invoice from a sentence, then check it before anything is sent**
